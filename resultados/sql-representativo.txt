@@ -1,0 +1,12 @@
+lazy (10 pedidos):
+select pl1_0.id,pl1_0.cliente_id,pl1_0.criado_em,pl1_0.status from pedido pl1_0 where pl1_0.id between ? and ? order by pl1_0.id
+select i1_0.pedido_id,i1_0.id,i1_0.preco,i1_0.produto,i1_0.quantidade from item_pedido i1_0 where i1_0.pedido_id=?
+select i1_0.pedido_id,i1_0.id,i1_0.preco,i1_0.produto,i1_0.quantidade from item_pedido i1_0 where i1_0.pedido_id=?
+
+eager (10 pedidos):
+select pe1_0.id,pe1_0.cliente_id,pe1_0.criado_em,pe1_0.status from pedido pe1_0 where pe1_0.id between ? and ? order by pe1_0.id
+select i1_0.pedido_id,i1_0.id,i1_0.preco,i1_0.produto,i1_0.quantidade from item_pedido i1_0 where i1_0.pedido_id=?
+select i1_0.pedido_id,i1_0.id,i1_0.preco,i1_0.produto,i1_0.quantidade from item_pedido i1_0 where i1_0.pedido_id=?
+
+otimizado (10 pedidos):
+select distinct pl1_0.id,pl1_0.cliente_id,pl1_0.criado_em,i1_0.pedido_id,i1_0.id,i1_0.preco,i1_0.produto,i1_0.quantidade,pl1_0.status from pedido pl1_0 left join item_pedido i1_0 on pl1_0.id=i1_0.pedido_id where pl1_0.id between ? and ? order by pl1_0.id

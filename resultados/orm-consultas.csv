@@ -1,0 +1,10 @@
+variante,quantidade,selects,tempo_ms,bytes,itens
+lazy,10,11,27.566,682,30
+eager,10,11,23.289,682,30
+otimizado,10,1,13.305,682,30
+lazy,50,51,63.69,3442,150
+eager,50,51,53.815,3442,150
+otimizado,50,1,11.641,3442,150
+lazy,100,101,121.68,6893,300
+eager,100,101,44.101,6893,300
+otimizado,100,1,9.724,6893,300

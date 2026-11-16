@@ -1,0 +1,17 @@
+2026-11-16T11:14:27-03:00
+    PID %CPU   RSS     ELAPSED COMMAND
+ 322297  2.9 404964      07:35 java
+ 322592 48.0 399180      07:32 java
+    PID %CPU   RSS     ELAPSED COMMAND
+ 299976  0.0 31672       10:39 postgres
+ 299992  0.0 13020       10:39 postgres
+ 299993  0.0  7148       10:39 postgres
+ 299994  0.0  7912       10:39 postgres
+ 299995  0.0 59916       10:39 postgres
+ 299996  0.0  7604       10:39 postgres
+ 300001  0.0 10872       10:39 postgres
+ 300003  0.0  9272       10:39 postgres
+ 300005  0.0  8424       10:39 postgres
+active|4
+idle|1
+idle in transaction|6

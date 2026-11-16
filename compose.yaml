@@ -1,0 +1,19 @@
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: trabalho
+      POSTGRES_USER: trabalho
+      POSTGRES_PASSWORD: trabalho_local
+    ports:
+      - "5433:5432"
+    volumes:
+      - dados_pg:/var/lib/postgresql/data
+      - ./sql/01-schema-seed.sql:/docker-entrypoint-initdb.d/01-schema-seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U trabalho -d trabalho"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+volumes:
+  dados_pg:

@@ -1,0 +1,10 @@
+2026-11-16T11:08:01-03:00
+openjdk version "21.0.13" 2026-10-20 LTS
+k6 v2.4.0 (commit/dd9395906d, go1.26.11, linux/amd64)
+postgres (PostgreSQL) 18.6
+16
+               total        used        free      shared  buff/cache   available
+Mem:            22Gi        11Gi       4.4Gi       1.1Gi       9.5Gi        11Gi
+1000|100000|300000
+Carga: 15 segundos, 3 rodadas, 10/50/100 VUs, sleep(0.2), perfil carga, máquina local
+Índice: primeira série sem índice descartada após a API ser encerrada com código 137 na última rodada de 100 VUs. As saídas originais estão em resultados/descartadas/. Série repetida com java -Xms128m -Xmx512m -jar, perfil carga; essa mesma instância será usada antes e depois do índice.

@@ -1,0 +1,103 @@
+[
+  {
+    "etapa": "miss",
+    "status": 200,
+    "tempo_ms": 102.243,
+    "bytes": 29,
+    "json": {
+      "id": 42,
+      "nome": "Cliente 42"
+    },
+    "consultas": [
+      "select c1_0.id,c1_0.nome from cliente c1_0 where c1_0.id=?"
+    ]
+  },
+  {
+    "etapa": "hit",
+    "status": 200,
+    "tempo_ms": 11.609,
+    "bytes": 29,
+    "json": {
+      "id": 42,
+      "nome": "Cliente 42"
+    },
+    "consultas": []
+  },
+  {
+    "etapa": "sem-cache",
+    "status": 200,
+    "tempo_ms": 19.492,
+    "bytes": 29,
+    "json": {
+      "id": 42,
+      "nome": "Cliente 42"
+    },
+    "consultas": [
+      "select c1_0.id,c1_0.nome from cliente c1_0 where c1_0.id=?"
+    ]
+  },
+  {
+    "etapa": "put",
+    "status": 200,
+    "tempo_ms": 247.11,
+    "bytes": 37,
+    "json": {
+      "id": 42,
+      "nome": "Cliente atualizado"
+    },
+    "consultas": [
+      "select c1_0.id,c1_0.nome from cliente c1_0 where c1_0.id=?",
+      "update cliente set nome=? where id=?"
+    ]
+  },
+  {
+    "etapa": "apos-put",
+    "status": 200,
+    "tempo_ms": 15.464,
+    "bytes": 37,
+    "json": {
+      "id": 42,
+      "nome": "Cliente atualizado"
+    },
+    "consultas": [
+      "select c1_0.id,c1_0.nome from cliente c1_0 where c1_0.id=?"
+    ]
+  },
+  {
+    "etapa": "ttl-miss",
+    "status": 200,
+    "tempo_ms": 16.303,
+    "bytes": 29,
+    "json": {
+      "id": 44,
+      "nome": "Cliente 44"
+    },
+    "consultas": [
+      "select c1_0.id,c1_0.nome from cliente c1_0 where c1_0.id=?"
+    ]
+  },
+  {
+    "etapa": "ttl-hit",
+    "status": 200,
+    "tempo_ms": 12.171,
+    "bytes": 29,
+    "json": {
+      "id": 44,
+      "nome": "Cliente 44"
+    },
+    "consultas": []
+  },
+  {
+    "etapa": "ttl-expirado",
+    "status": 200,
+    "tempo_ms": 120.288,
+    "bytes": 29,
+    "json": {
+      "id": 44,
+      "nome": "Cliente 44"
+    },
+    "consultas": [
+      "select c1_0.id,c1_0.nome from cliente c1_0 where c1_0.id=?"
+    ]
+  }
+]

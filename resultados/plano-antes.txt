@@ -1,0 +1,17 @@
+                                                      QUERY PLAN
+-----------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=1988.66..1988.71 rows=20 width=30) (actual time=4.658..4.661 rows=20.00 loops=1)
+   Buffers: shared hit=739
+   ->  Sort  (cost=1988.66..1988.91 rows=100 width=30) (actual time=4.657..4.658 rows=20.00 loops=1)
+         Sort Key: criado_em DESC
+         Sort Method: top-N heapsort  Memory: 27kB
+         Buffers: shared hit=739
+         ->  Seq Scan on pedido  (cost=0.00..1986.00 rows=100 width=30) (actual time=0.026..4.620 rows=100.00 loops=1)
+               Filter: (cliente_id = 42)
+               Rows Removed by Filter: 99900
+               Buffers: shared hit=736
+ Planning:
+   Buffers: shared hit=91
+ Planning Time: 0.312 ms
+ Execution Time: 4.690 ms
+(14 rows)
