@@ -4,7 +4,7 @@
 
 Este repositório reúne uma API sem frontend e três experimentos: cache de cliente, carregamento de pedidos com itens e índice para consulta por cliente. O banco medido contém **1.000 clientes, 100.000 pedidos e 300.000 itens**, confirmados por `SELECT count(*)` em cada tabela.
 
-**Ambiente medido:** PostgreSQL 18.6, Java 21.0.13, Spring Boot 3.5.16 e k6 2.4.0, executados localmente no mesmo computador. O PostgreSQL foi iniciado em espaço do usuário porque o Docker não estava acessível. As versões, contagens e capacidade da máquina constam em [ambiente.txt](resultados/ambiente.txt). Os tempos de chamada isolada são apenas diagnósticos; a comparação de desempenho usa as rodadas k6.
+**Ambiente medido:** PostgreSQL 18.6, Java 21.0.13, Spring Boot 3.5.16 e k6 2.4.0, executados localmente no mesmo computador. O PostgreSQL foi iniciado em espaço do usuário porque o Docker não estava acessível no momento das medições. Posteriormente, o PostgreSQL 17 do Compose foi iniciado e [validado](resultados/docker-verificacao.txt) com o mesmo volume de dados; os três JSONs de pedidos foram comparados nesse banco. As métricas de carga deste relatório continuam sendo as obtidas no PostgreSQL 18.6. As versões, contagens e capacidade da máquina medida constam em [ambiente.txt](resultados/ambiente.txt). Os tempos de chamada isolada são apenas diagnósticos; a comparação de desempenho usa as rodadas k6.
 
 ## 2. Arquitetura e tecnologias
 
