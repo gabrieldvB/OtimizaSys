@@ -1,16 +1,22 @@
-# OtimizaSistema — API de pedidos e experimentos
+# Análise e Otimização de Sistemas — API de pedidos e experimentos - Trabalho Prático (A2)
 
-## 1. Introdução
+## Tema: Otimização de Web Services por meio de Cache, Consultas ao Banco de Dados e Testes de Desempenho
 
-Este repositório reúne uma API sem frontend e três experimentos: cache de cliente, carregamento de pedidos com itens e índice para consulta por cliente. O banco medido contém **1.000 clientes, 100.000 pedidos e 300.000 itens**, confirmados por `SELECT count(*)` em cada tabela.
+## Professor: André Lúcio
 
-**Ambiente medido:** PostgreSQL 18.6, Java 21.0.13, Spring Boot 3.5.16 e k6 2.4.0, executados localmente no mesmo computador. O PostgreSQL foi iniciado em espaço do usuário porque o Docker não estava acessível no momento das medições. Posteriormente, o PostgreSQL 17 do Compose foi iniciado e [validado](resultados/docker-verificacao.txt) com o mesmo volume de dados; os três JSONs de pedidos foram comparados nesse banco. As métricas de carga deste relatório continuam sendo as obtidas no PostgreSQL 18.6. As versões, contagens e capacidade da máquina medida constam em [ambiente.txt](resultados/ambiente.txt). Os tempos de chamada isolada são apenas diagnósticos; a comparação de desempenho usa as rodadas k6.
+## Integrantes: Gabriel Balduino (1230205586), Carlos Rocha (1240101330) e Everton Miguel (1230116950)
 
-## 2. Arquitetura e tecnologias
+### 1. Introdução
 
-Java 21, Spring Boot 3.5.16, Spring Web, Spring Data JPA/Hibernate, PostgreSQL, Caffeine e k6. `compose.yaml` fornece PostgreSQL 17 para reprodução; as medidas deste relatório usaram PostgreSQL 18.6 local. `sql/01-schema-seed.sql` cria as tabelas e insere os dados. O Hibernate apenas valida o esquema (`ddl-auto=validate`). A aplicação mapeia `pedido` de duas formas de leitura, `PedidoLazy` e `PedidoEager`, para comparar o carregamento sem alterar os dados.
+Este repositório tem uma API (sem frontend) feita para testar três coisas na prática: cache de cliente, estratégias de carregamento de pedidos com itens no ORM e criação de índice para consulta por cliente. O banco populado para os testes tem **1.000 clientes, 100.000 pedidos e 300.000 itens** (conferidos com `SELECT count(*)` em cada tabela).
 
-Para iniciar, instale Java 21, Maven, Docker com Compose, curl e [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/). A versão do Spring Boot foi escolhida entre as [versões estáveis publicadas](https://docs.spring.io/spring-boot/).
+**Ambiente dos testes:** PostgreSQL 18.6, Java 21.0.13, Spring Boot 3.5.16 e k6 2.4.0, tudo rodando localmente na mesma máquina. Como o Docker não estava acessível na hora das medições, subimos o PostgreSQL localmente em espaço de usuário. Depois, o PostgreSQL 17 do `compose.yaml` também foi testado e [validado](resultados/docker-verificacao.txt) com o mesmo volume de dados, e os três JSONs de pedidos bateram igual. Os números de carga deste documento continuam sendo os do PostgreSQL 18.6. Os detalhes de versão e hardware estão em [ambiente.txt](resultados/ambiente.txt). As chamadas isoladas servem só para diagnóstico; a comparação de desempenho de verdade vem das rodadas do k6.
+
+### 2. Arquitetura e tecnologias
+
+O projeto usa Java 21, Spring Boot 3.5.16 (versão estável escolhida na [documentação oficial](https://docs.spring.io/spring-boot/)), Spring Web, Spring Data JPA/Hibernate, PostgreSQL, Caffeine e k6. O `compose.yaml` sobe um PostgreSQL 17 para quem quiser reproduzir, e o `sql/01-schema-seed.sql` cria as tabelas e popula o banco. O Hibernate está configurado só para validar o schema (`ddl-auto=validate`). A tabela `pedido` foi mapeada de duas formas (`PedidoLazy` e `PedidoEager`) justamente para comparar o comportamento sem mexer nos dados.
+
+Para rodar, você vai precisar de Java 21, Maven, Docker com Compose, `curl` e [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/).
 
 ```bash
 docker compose up -d
@@ -19,23 +25,23 @@ docker compose exec db psql -U trabalho -d trabalho -c \
 ./mvnw spring-boot:run
 ```
 
-O SQL de inicialização só roda quando o volume é criado. `docker compose down -v` remove **todos os dados desse banco local**. Para carga, reinicie a API com `./mvnw spring-boot:run -Dspring-boot.run.profiles=carga`; esse perfil desliga o log SQL detalhado e as estatísticas Hibernate. Use o mesmo perfil e a mesma máquina em todas as variantes de cada comparação.
+Vale lembrar que o script SQL inicial só roda na criação do volume. Se precisar zerar tudo, `docker compose down -v` apaga os dados do banco local. Na hora de rodar os testes de carga, é importante subir a API com o perfil `carga` (`./mvnw spring-boot:run -Dspring-boot.run.profiles=carga`), que desliga o log de SQL e as estatísticas do Hibernate. Sempre rode todas as variantes no mesmo perfil e na mesma máquina para a comparação fazer sentido.
 
-| Endpoint | Finalidade |
+| Endpoint | O que faz |
 |---|---|
-| `GET /api/clientes/42/sem-cache` | Leitura direta do banco |
-| `GET /api/clientes/42/com-cache` | Leitura com Caffeine |
-| `PUT /api/clientes/42` | Atualiza `{"nome":"Novo nome"}` e invalida cache |
-| `GET /api/pedidos/lazy?inicio=1&quantidade=50` | Itens sob demanda |
-| `GET /api/pedidos/eager?inicio=1&quantidade=50` | Itens antecipados |
-| `GET /api/pedidos/otimizado?inicio=1&quantidade=50` | Itens por JOIN FETCH |
-| `GET /api/pedidos/cliente/42` | Últimos 20 pedidos do cliente |
+| `GET /api/clientes/42/sem-cache` | Busca direto no banco |
+| `GET /api/clientes/42/com-cache` | Busca usando Caffeine |
+| `PUT /api/clientes/42` | Atualiza `{"nome":"Novo nome"}` e invalida o cache |
+| `GET /api/pedidos/lazy?inicio=1&quantidade=50` | Carrega itens sob demanda |
+| `GET /api/pedidos/eager?inicio=1&quantidade=50` | Carrega itens de forma antecipada |
+| `GET /api/pedidos/otimizado?inicio=1&quantidade=50` | Carrega itens com `JOIN FETCH` |
+| `GET /api/pedidos/cliente/42` | Traz os últimos 20 pedidos do cliente |
 
-`quantidade` aceita 10, 50 ou 100. `inicio` deve caber em 1..100.000. Todos os modos ORM retornam `id`, `status`, `quantidadeDeItens` e `valorTotal`; o valor total soma `quantidade × preco` de cada item.
+O parâmetro `quantidade` aceita 10, 50 ou 100, e `inicio` vai de 1 até 100.000. Todos os endpoints de ORM devolvem `id`, `status`, `quantidadeDeItens` e `valorTotal` (soma de `quantidade × preco` de cada item).
 
-## 3. Cache
+### 3. Cache
 
-O cache `clientes` tem capacidade de 2.000 entradas e TTL de **60 segundos após a escrita**. Uma leitura repetida de cliente produziu um hit sem novo SELECT. O `PUT` invalidou a entrada pelo mesmo ID; a próxima leitura consultou o banco e retornou `Cliente atualizado`. Depois de esperar 61 segundos sem outra escrita, ocorreu novo SELECT. Evidência detalhada: [cache-demonstracao.json](resultados/cache-demonstracao.json). O TTL limita a duração de um valor antigo quando o cliente muda fora desta API, mas Caffeine é local ao processo: alterações diretas no banco e outras instâncias não propagam a invalidação.
+O cache `clientes` guarda até 2.000 entradas com TTL de **60 segundos após a escrita**. Nos testes, a segunda leitura do mesmo cliente deu hit sem bater no banco. Quando fizemos um `PUT` no mesmo ID, a entrada foi invalidada e a leitura seguinte foi no banco buscar `Cliente atualizado`. Esperando 61 segundos sem mexer no registro, o cache expirou e rolou um novo `SELECT` (os logs disso estão em [cache-demonstracao.json](resultados/cache-demonstracao.json)). Como o Caffeine fica na memória da aplicação, esse TTL ajuda a limitar por quanto tempo um dado antigo fica visível se alguém alterar o banco por fora, mas não resolve sincronização entre várias instâncias da API.
 
 ```java
 @Cacheable(cacheNames = "clientes", key = "#id")
@@ -50,7 +56,7 @@ public ClienteDto atualizar(Long id, String nome) {
 }
 ```
 
-O TTL de 60 segundos foi escolhido para um nome de cliente, dado pouco volátil neste laboratório. A atualização pela API invalida imediatamente; uma alteração externa pode deixar o nome antigo visível por até cerca de 60 segundos. Para dados mais voláteis, seria preciso um TTL menor ou invalidação entre instâncias.
+Escolhemos 60 segundos porque nome de cliente muda pouco nesse cenário. Pela API, o `PUT` já limpa o cache na hora; por fora, o valor antigo dura no máximo esse tempo. Se fosse um dado que muda toda hora, teria que baixar o TTL ou usar um cache distribuído.
 
 | Etapa | SELECTs de cliente | Tempo HTTP isolado (ms) |
 |---|---:|---:|
@@ -61,9 +67,9 @@ O TTL de 60 segundos foi escolhido para um nome de cliente, dado pouco volátil 
 | Hit antes do TTL | 0 | 12,171 |
 | Após expirar o TTL | 1 | 120,288 |
 
-Esses tempos não provam ganho sustentado: incluem aquecimento e variação de uma única requisição. O `PUT` emitiu SELECT e UPDATE.
+Esses números de chamada única não servem para provar ganho de performance (tem aquecimento da JVM e ruído de uma requisição só). O `PUT` gerou um `SELECT` e um `UPDATE`.
 
-Com o perfil padrão e log SQL habilitado, execute uma chamada por vez e anote o SELECT e o tempo HTTP:
+Para testar isso na mão com o perfil padrão (log SQL ligado), basta rodar uma chamada por vez e ir olhando o console:
 
 ```bash
 curl -w ' tempo=%{time_total}s\n' http://localhost:8080/api/clientes/42/com-cache
@@ -73,11 +79,11 @@ curl -X PUT -H 'Content-Type: application/json' -d '{"nome":"Cliente atualizado"
 curl -w ' tempo=%{time_total}s\n' http://localhost:8080/api/clientes/42/com-cache
 ```
 
-Para o TTL, consulte um ID ainda não usado duas vezes, espere mais de 60 segundos sem `PUT` e consulte novamente. Registre a nova consulta SQL. A carga `com-cache` de `carga/medir.sh` aquece o ID 42 e mede **hit**; uma chamada única a ID 43 com cache vazio é um **miss**. Uma carga repetida ao mesmo ID não mede misses.
+Para ver o TTL expirando, chame um ID novo duas vezes, espere mais de 60 segundos sem dar `PUT` e chame de novo. No script `carga/medir.sh`, a carga `com-cache` aquece o ID 42 e mede **hit**; já uma chamada isolada no ID 43 com cache vazio mede **miss**.
 
-## 4. Otimização de consultas
+### 4. Otimização de consultas
 
-`lazy`, `eager` e `otimizado` foram chamados com as mesmas janelas de 10, 50 e 100 IDs. O serviço percorre os itens **dentro da transação** para construir o mesmo DTO. Os JSONs foram comparados e são iguais nas três janelas. Nesta versão do Hibernate, LAZY e EAGER emitiram uma consulta de pedidos mais uma por pedido; JOIN FETCH emitiu uma consulta por chamada. Os tempos abaixo são de chamadas isoladas, sem repetição controlada. [orm-consultas.csv](resultados/orm-consultas.csv) e [sql-representativo.txt](resultados/sql-representativo.txt) guardam as evidências.
+Os modos `lazy`, `eager` e `otimizado` foram testados com janelas de 10, 50 e 100 pedidos. O serviço percorre os itens **dentro da transação** para montar o mesmo DTO, e comparamos os JSONs nas três janelas para garantir que a saída é idêntica. Nessa versão do Hibernate, tanto LAZY quanto EAGER dispararam 1 `SELECT` para os pedidos + 1 `SELECT` para cada pedido (problema N+1), enquanto o `JOIN FETCH` resolveu tudo em 1 `SELECT` só. Os tempos abaixo são de chamadas isoladas; os detalhes estão em [orm-consultas.csv](resultados/orm-consultas.csv) e [sql-representativo.txt](resultados/sql-representativo.txt).
 
 | Pedidos | LAZY: SELECTs / ms | EAGER: SELECTs / ms | JOIN FETCH: SELECTs / ms | Itens | JSON (bytes) |
 |---:|---:|---:|---:|---:|---:|
@@ -85,7 +91,7 @@ Para o TTL, consulte um ID ainda não usado duas vezes, espere mais de 60 segund
 | 50 | 51 / 63,690 | 51 / 53,815 | 1 / 11,641 | 150 | 3.442 |
 | 100 | 101 / 121,680 | 101 / 44,101 | 1 / 9,724 | 300 | 6.893 |
 
-O JOIN FETCH repete as colunas do pedido nas linhas SQL, mas o JSON público teve o mesmo tamanho nas três variantes. LAZY evita ler itens quando não são necessários; neste endpoint todos são percorridos, gerando N+1. EAGER leu os itens antecipadamente, porém também em consultas secundárias. SQL nativo não foi necessário; adicioná-lo aumentaria a dependência do dialeto sem benefício medido.
+No `JOIN FETCH`, as colunas do pedido vêm repetidas nas linhas do SQL, mas o JSON final tem exatamente o mesmo tamanho. O LAZY só economizaria consultas se os itens não fossem acessados, o que não é o caso aqui. O EAGER até carrega antes, mas acabou fazendo consultas separadas do mesmo jeito. Não precisamos recorrer a SQL nativo para resolver isso.
 
 ```java
 @Query("select distinct p from PedidoLazy p left join fetch p.itens "
@@ -105,11 +111,11 @@ for quantidade in 10 50 100; do
 done
 ```
 
-O [plano sem índice](resultados/plano-antes.txt) fez `Seq Scan` sobre 100.000 pedidos, descartou 99.900 linhas, ordenou os 100 pedidos do cliente e retornou 20; registrou **4,690 ms** e **739 buffers hit**. Depois de executar `CREATE INDEX idx_pedido_cliente_data ON pedido(cliente_id, criado_em DESC)` e `ANALYZE pedido`, o [plano com índice](resultados/plano-depois.txt) fez `Index Scan`, retornou 20 linhas sem `Sort` explícito e registrou **0,151 ms**, **23 buffers hit** e **3 read**. São tempos internos do banco para uma execução de cada plano, não medianas HTTP. O índice foi de fato utilizado e ocupou [3.104 kB](resultados/indice-tamanho.txt) neste banco. A chave primária não atende automaticamente a esse filtro e ordem. Índices ocupam espaço e adicionam trabalho a INSERT, UPDATE e DELETE; criar um para toda coluna consultada aumentaria esse custo sem garantia de uso pelo planejador.
+Na parte de indexação, o [plano sem índice](resultados/plano-antes.txt) fez um `Seq Scan` nos 100.000 pedidos, descartou 99.900 linhas, ordenou os 100 pedidos do cliente e devolveu 20, levando **4,690 ms** com **739 buffers hit**. Depois de rodar `CREATE INDEX idx_pedido_cliente_data ON pedido(cliente_id, criado_em DESC)` e `ANALYZE pedido`, o [plano com índice](resultados/plano-depois.txt) mudou para `Index Scan`, já entregou as 20 linhas ordenadas sem `Sort` explícito e caiu para **0,151 ms** (**23 buffers hit** e **3 read**). Esses tempos são internos do Postgres, não da API. O índice ocupou [3.104 kB](resultados/indice-tamanho.txt). A chave primária sozinha não resolve esse filtro com ordenação, mas também não faz sentido sair indexando toda coluna, já que cada índice ocupa espaço e deixa `INSERT`, `UPDATE` e `DELETE` mais pesados.
 
-## 5. Testes de desempenho
+### 5. Testes de desempenho
 
-Use um ambiente local ou de laboratório autorizado. k6 foi escolhido porque permite fixar usuários virtuais, duração, verificações HTTP e exportar métricas por rodada em JSON. `carga/medir.sh` aquece cada endpoint com uma chamada e uma rodada curta descartada. A medição usou **3 rodadas de 15 segundos** para 10, 50 e 100 usuários virtuais por variante, uma rodada por vez. A duração de 15 segundos foi adotada para completar as 63 rodadas neste computador; testes mais longos seriam úteis para avaliar estabilidade prolongada. Cada usuário espera 0,2 segundo entre chamadas. Para reproduzir exatamente a duração medida:
+Usamos o k6 porque facilita fixar usuários virtuais (VUs), tempo de duração, checks HTTP e salvar tudo em JSON. O script `carga/medir.sh` faz um aquecimento antes de valer (uma chamada simples e uma rodada curta descartada). Cada cenário rodou **3 vezes por 15 segundos**, testando 10, 50 e 100 VUs por variante, com pausa de 0,2s entre chamadas de cada VU. Optamos por 15 segundos para conseguir fechar todas as 63 rodadas em tempo hábil na máquina local (testes mais longos ajudariam a ver estabilidade em regime contínuo). Para reproduzir exatamente como medimos:
 
 ```bash
 DURACAO=15s bash carga/medir.sh cache
@@ -121,9 +127,9 @@ DURACAO=15s bash carga/medir.sh indice-depois
 python3 carga/resumir.py
 ```
 
-Para o banco do `compose.yaml`, omita `DB_MODE=local`. `carga/medir.sh` usa 60 segundos por padrão; `DURACAO=15s` seleciona o protocolo medido aqui. O índice foi criado **somente entre** as séries antes e depois. A primeira tentativa da série sem índice foi descartada porque a API terminou com código 137 na última rodada; os arquivos originais estão em [descartadas](resultados/descartadas/) e não entram nas medianas. A série sem índice foi repetida integralmente e ambas as séries de índice usaram a mesma instância da API, iniciada como JAR com heap máximo de 512 MB. Não houve evidência suficiente para atribuir o encerramento a uma causa específica.
+Se for usar o banco do `compose.yaml`, basta tirar o `DB_MODE=local`. Por padrão o `medir.sh` usa 60s, então `DURACAO=15s` força o protocolo deste relatório. O índice foi criado só entre as rodadas `antes` e `depois`. Vale registrar que a primeira tentativa sem índice foi descartada porque a API caiu com código 137 na última rodada (os logs ficaram em [descartadas](resultados/descartadas/) e não entraram nas contas). Repetimos a série inteira sem índice e rodamos as duas séries de índice na mesma instância da API (JAR com `-Xmx512m`).
 
-[resumo.csv](resultados/resumo.csv) contém a **mediana das três rodadas** para cada métrica. [faixas.csv](resultados/faixas.csv) contém mínimo e máximo; os JSONs individuais preservam todas as saídas do k6. Todas as 63 rodadas válidas tiveram **0% de erros HTTP**. VUs não são req/s; a pausa de 0,2 segundo limita a taxa alcançável, principalmente nos endpoints rápidos.
+O arquivo [resumo.csv](resultados/resumo.csv) traz a **mediana das três rodadas** e [faixas.csv](resultados/faixas.csv) mostra mínimo e máximo. Todas as 63 rodadas válidas tiveram **0% de erro HTTP**. Lembrando que VUs não são req/s: o `sleep(0.2)` limita a taxa máxima, principalmente nos endpoints que respondem muito rápido.
 
 | Experimento | Variante | VUs | Média (ms) | p95 (ms) | p99 (ms) | req/s | Erros (%) |
 |---|---|---:|---:|---:|---:|---:|---:|
@@ -156,20 +162,18 @@ Para o banco do `compose.yaml`, omita `DB_MODE=local`. `carga/medir.sh` usa 60 s
 ![p95 antes e depois do índice](resultados/indice-p95_ms.svg)
 ![req/s antes e depois do índice](resultados/indice-req_s.svg)
 
-O tempo de `EXPLAIN ANALYZE` é apenas do banco; o tempo da API inclui conexão, mapeamento, serialização e HTTP.
+Lembrando que o tempo do `EXPLAIN ANALYZE` mede só o banco, enquanto a API inclui conexão, mapeamento, serialização JSON e HTTP.
 
-## 6. Discussão
+### 6. Discussão
 
-O cache eliminou SELECTs nos hits, mas **não melhorou sempre a latência**. Em 10 e 100 VUs, a média caiu aproximadamente 33% e 32%; em 50 VUs, subiu de 2,041 para 2,904 ms e o p95 subiu de 3,651 para 6,488 ms. As três rodadas de hit em 50 VUs tiveram p95 de 6,241 a 7,483 ms, então não se trata de uma única amostra extrema. O custo de uma leitura simples já era baixo; overhead da aplicação, variação temporal da máquina e expirações ocasionais do TTL podem ter reduzido o benefício. Esses dados não isolam qual fator causou a piora. O ganho em req/s foi pequeno porque `sleep(0.2)` aproxima a taxa do limite de 5 requisições por segundo por VU.
+O cache zerou os `SELECT`s nos hits, mas **nem sempre baixou a latência**. Com 10 e 100 VUs, a média caiu cerca de 33% e 32%; já com 50 VUs, subiu de 2,041 para 2,904 ms (e o p95 foi de 3,651 para 6,488 ms). Como as três rodadas de hit em 50 VUs tiveram p95 entre 6,241 e 7,483 ms, não foi um ponto fora da curva isolado. Como a leitura direta no banco já era muito rápida, o overhead da aplicação, oscilações da máquina e eventuais expirações de TTL acabam pesando mais. Em req/s a diferença também foi pequena por causa do `sleep(0.2)`, que trava cada VU perto de 5 req/s.
 
-LAZY apresentou N+1 porque o DTO precisa percorrer todos os itens. EAGER também fez consultas secundárias, com a mesma contagem de SELECTs; o custo sob carga não foi uniformemente melhor nem pior. JOIN FETCH reduziu os SELECTs de 51 para 1 na janela de 50 pedidos. Em 50 e 100 VUs, a média caiu **63,8% e 62,5%** frente a LAZY, o p95 caiu **63,6% e 54,5%**, e o p99 caiu **62,9% e 57,7%**. Em 10 VUs, a média caiu 8,3%, mas p95 e p99 **pioraram** 30,7% e 54,4%; o menor número de SQL não garante cauda menor em toda carga. O tamanho do JSON foi igual nas três variantes; a duplicação das colunas no JOIN ocorre no tráfego banco–API, não na resposta pública.
+No ORM, LAZY e EAGER sofreram com N+1 e tiveram comportamento parecido sob carga. O `JOIN FETCH` cortou de 51 para 1 consulta na janela de 50 pedidos. Com 50 e 100 VUs, a média caiu **63,8% e 62,5%** em relação ao LAZY, o p95 caiu **63,6% e 54,5%** e o p99 caiu **62,9% e 57,7%**. Curiosamente, com 10 VUs a média caiu 8,3%, mas p95 e p99 subiram (30,7% e 54,4%), mostrando que reduzir SQL não garante cauda menor em carga baixa.
 
-O índice foi usado pelo PostgreSQL e reduziu o trabalho de varredura e ordenação. No HTTP, a média caiu **79,4%, 80,7% e 78,2%** em 10, 50 e 100 VUs. O p95 caiu **70,3%, 77,4% e 57,4%** e o p99 caiu **60,8%, 76,6% e 68,5%**. Entre as três técnicas medidas, esse foi o maior ganho relativo de média **para o endpoint escolhido**; são cargas e consultas diferentes, então o percentual não estabelece uma regra geral. A série sem índice em 100 VUs teve p95 de **14,169 a 92,563 ms** nas três rodadas, sinal de variação relevante apesar da mediana de 14,949 ms. O cache de páginas do PostgreSQL e o custo fixo de conexão, serialização e HTTP ajudam a explicar por que os tempos da API não seguem exatamente os do `EXPLAIN ANALYZE`.
+O índice foi onde vimos o maior ganho relativo nesse endpoint: a média HTTP caiu **79,4%, 80,7% e 78,2%** para 10, 50 e 100 VUs, o p95 caiu **70,3%, 77,4% e 57,4%** e o p99 caiu **60,8%, 76,6% e 68,5%**. Mesmo assim, na série sem índice em 100 VUs o p95 oscilou bastante entre as rodadas (de 14,169 a 92,563 ms). O cache de páginas do próprio PostgreSQL e o custo fixo de rede/serialização explicam por que a melhora no HTTP não acompanha na mesma proporção a queda absurda do `EXPLAIN ANALYZE`.
 
-O consumo foi amostrado pontualmente durante a carga ORM em [recursos-amostra.txt](resultados/recursos-amostra.txt); não há série temporal suficiente para atribuir gargalo a CPU ou memória. As rodadas de 15 segundos e a ordem fixa das variantes limitam conclusões sobre estabilidade prolongada e efeitos de deriva do ambiente.
+Também fizemos uma amostragem pontual de CPU/memória durante a carga ORM ([recursos-amostra.txt](resultados/recursos-amostra.txt)), mas sem série contínua não dá para cravar gargalo de hardware. Além disso, rodadas de 15s em ordem fixa deixam em aberto como a aplicação se comportaria em testes mais longos.
 
-## 7. Conclusão
+### 7. Conclusão
 
-A mudança melhora o desempenho quando reduz trabalho efetivamente necessário e isso aparece tanto na execução quanto nas medidas repetidas. Aqui, JOIN FETCH eliminou N+1 e teve ganho claro em 50 e 100 VUs; o índice transformou a consulta do cliente de varredura e ordenação em busca ordenada e apresentou o maior ganho relativo de média desse endpoint. O cache demonstrou hits, invalidação e TTL, mas seu efeito de latência variou com a carga. Os planos, logs, saídas k6, tabelas e gráficos permitem conferir essas conclusões e seus limites.
-
-**Roteiro de apresentação (até 7 min):** 0:00–0:40 arquitetura e volume; 0:40–1:50 cache, PUT, hit e TTL; 1:50–3:10 SQL LAZY/EAGER/JOIN FETCH; 3:10–4:10 planos antes/depois; 4:10–5:10 uma execução k6 curta; 5:10–6:40 gráficos, conclusão e limites. Use as evidências já gravadas em `resultados/`; na apresentação, execute apenas uma demonstração curta do k6.
+No fim, as otimizações funcionam quando cortam trabalho pesado de verdade, e isso aparece tanto no SQL quanto nas medições repetidas. O `JOIN FETCH` resolveu o N+1 e brilhou com 50 e 100 VUs; o índice tirou o `Seq Scan` + `Sort` da consulta por cliente e trouxe o maior ganho do experimento; e o cache funcionou bem para hits, invalidação e TTL, embora em consultas já muito rápidas o ganho de latência varie bastante conforme a carga.
